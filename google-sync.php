@@ -1,5 +1,8 @@
 <?php
 
+$gas_url = getenv("OPENSHIFT_GAS_URL");
+$table_name="MCCC_CM_Master";
+
 function http_get($url)
 {
 	$curl = curl_init($url);
@@ -25,49 +28,24 @@ function http_post($url,$data)
 	return $server_output;
 }
 
-function http_get_2($url)
-{
-	return file_get_contents($url);
-}
-
-function test($db)
-{
-
-    $db->exec("DROP TABLE IF EXISTS `Dogs`");
-    $db->exec("CREATE TABLE Dogs (Id INTEGER PRIMARY KEY, Breed TEXT, Name TEXT, Age INTEGER)");   
-    
-    
-    //insert some data...
-    $db->exec("INSERT INTO Dogs (Breed, Name, Age) VALUES ('Labrador', 'Tank', 2);".
-    "INSERT INTO Dogs (Breed, Name, Age) VALUES ('Husky', 'Glacier', 7); " .
-    "INSERT INTO Dogs (Breed, Name, Age) VALUES ('Golden-Doodle', 'Ellie', 4);");
-
-}
-
 function createSchema($db){
 
-    $gas_url = "..";
-    
+    global $gas_url;
+    global $table_name;
     $url = "$gas_url?action=get-header&json";
-    
     $json = http_get($url);
-    
     $headers = json_decode($json, true);
-
-    $db->exec("DROP TABLE IF EXISTS `CM_MASTER`");
-    
-    $sql="CREATE TABLE `CM_MASTER`"
+    $db->exec("DROP TABLE IF EXISTS `$table_name`");
+    $sql="CREATE TABLE `$table_name`"
     ." ("
-    .	"`id` INTEGER PRIMARY KEY AUTOINCREMENT";
+    .	"`id` INTEGER PRIMARY KEY AUTO_INCREMENT";
     
     foreach ($headers as $header) {
         $sql=$sql . ",\n";
         $sql=$sql . "`" . $header . "`   varchar(100)";
     }
     $sql=$sql . ")";
-    
-    // echo "<code>$sql</code>";
-    
+    //echo "$sql";
     $db->exec($sql);
     return $headers;
 }
@@ -75,12 +53,10 @@ function createSchema($db){
 
 function importData($db){
 
-    $gas_url = "..";
-
+    global $gas_url;
+    global $table_name;
     $url = "$gas_url?action=get-all&json";
-    
     $json = http_get($url);
-    
     $rows = json_decode($json, true);
 
     foreach ($rows as $row) {
@@ -97,28 +73,22 @@ function importData($db){
                 $values= $values . "," . '"' . addslashes($value) . '"';
             }
         }
-        $sql="insert into `CM_MASTER` ($fields) values ($values);\n";
-        // echo $sql;
+        $sql="insert into `$table_name` ($fields) values ($values);\n";
+        echo "$sql";
         $db->exec($sql);
     }
 
 }
 
+$dbname=getenv("OPENSHIFT_MYSQL_DB_NAME");
+$dbhost=getenv("OPENSHIFT_MYSQL_DB_HOST");
+$dbport=getenv("OPENSHIFT_MYSQL_DB_PORT");
+$username=getenv("OPENSHIFT_MYSQL_DB_USERNAME");
+$password=getenv("OPENSHIFT_MYSQL_DB_PASSWORD");
+$dsn = "mysql:host=$dbhost;port=$dbport;dbname=$dbname";
+$options = array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8");
 
-switch ($_SERVER['REQUEST_METHOD']) {
-    case 'GET': $the_request = &$_GET;
-        break;
-    case 'POST': $the_request = &$_POST;
-            $data=json_encode($_REQUEST);
-            http_post($gas_url,$data);
-        break;
-    default:
-}
-
-
-$dir = 'sqlite:mccc-children.db';
- 
-$db = new PDO($dir) or die("cannot open database");
+$db = new PDO($dsn, $username, $password, $options) or die("cannot open database");
 
 echo "<code>";
 createSchema($db);
@@ -128,4 +98,3 @@ $db=NULL;
 echo "</code>";
 echo "done!"
 ?>
-
