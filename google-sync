@@ -1,0 +1,4 @@
+#!/bin/bash
+source $OPENSHIFT_DATA_DIR/rhc_profile
+$OPENSHIFT_RUNTIME_DIR/php5/bin/php $OPENSHIFT_DATA_DIR/mccc-children/google-sync.php
+
