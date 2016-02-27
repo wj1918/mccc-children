@@ -1,7 +1,8 @@
 <?php
 
 $gas_url = getenv("OPENSHIFT_GAS_URL");
-$table_name="MCCC_CM_Master";
+$table_name="???";
+$gssid="???";
 
 function http_get($url)
 {
@@ -28,14 +29,16 @@ function http_post($url,$data)
 	return $server_output;
 }
 
-function createSchema($db){
+function createSchema(){
 
     global $gas_url;
     global $table_name;
-    $url = "$gas_url?action=get-header&json";
+    global $gssid;
+    $url = "$gas_url?action=get-header&json&gssid=$gssid";
     $json = http_get($url);
     $headers = json_decode($json, true);
-    $db->exec("DROP TABLE IF EXISTS `$table_name`");
+    $sql="DROP TABLE IF EXISTS `$table_name`";
+    echo "$sql;\n";
     $sql="CREATE TABLE `$table_name`"
     ." ("
     .	"`id` INTEGER PRIMARY KEY AUTO_INCREMENT";
@@ -45,17 +48,17 @@ function createSchema($db){
         $sql=$sql . "`" . $header . "`   varchar(100)";
     }
     $sql=$sql . ")";
-    //echo "$sql";
-    $db->exec($sql);
+    echo "$sql;\n";
     return $headers;
 }
 
 
-function importData($db){
+function importData(){
 
     global $gas_url;
     global $table_name;
-    $url = "$gas_url?action=get-all&json";
+    global $gssid;
+    $url = "$gas_url?action=get-all&json&gssid=$gssid";
     $json = http_get($url);
     $rows = json_decode($json, true);
 
@@ -75,26 +78,11 @@ function importData($db){
         }
         $sql="insert into `$table_name` ($fields) values ($values);\n";
         echo "$sql";
-        $db->exec($sql);
     }
 
 }
 
-$dbname=getenv("OPENSHIFT_MYSQL_DB_NAME");
-$dbhost=getenv("OPENSHIFT_MYSQL_DB_HOST");
-$dbport=getenv("OPENSHIFT_MYSQL_DB_PORT");
-$username=getenv("OPENSHIFT_MYSQL_DB_USERNAME");
-$password=getenv("OPENSHIFT_MYSQL_DB_PASSWORD");
-$dsn = "mysql:host=$dbhost;port=$dbport;dbname=$dbname";
-$options = array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8");
+createSchema();
+importData();
 
-$db = new PDO($dsn, $username, $password, $options) or die("cannot open database");
-
-echo "<code>";
-createSchema($db);
-importData($db);
-
-$db=NULL;
-echo "</code>";
-echo "done!"
 ?>
